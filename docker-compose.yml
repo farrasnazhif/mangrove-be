@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: mangrove
+      POSTGRES_PASSWORD: mangrove
+      POSTGRES_DB: mangrove
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+# Later (see backlog): MinIO for attachments, Langflow on an internal-only network.

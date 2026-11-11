@@ -1,0 +1,26 @@
+[project]
+name = "mangrove-be"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]",
+    "asyncpg",
+    "alembic",
+    "geoalchemy2",
+    "pydantic-settings",
+    "pyjwt",
+    "bcrypt",
+    "openpyxl",
+    "httpx",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
