@@ -17,12 +17,8 @@ class UserRole(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(
-        String, primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    email: Mapped[str] = mapped_column(
-        String(254), unique=True, nullable=False, index=True
-    )
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str | None] = mapped_column(
         String(256), nullable=True
     )  # None for anonymous visitors
@@ -30,6 +26,7 @@ class User(Base):
         SAEnum(UserRole, name="user_role"), nullable=False, default=UserRole.visitor
     )
     is_active: Mapped[bool] = mapped_column(default=True)
+    session_version: Mapped[int] = mapped_column(default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

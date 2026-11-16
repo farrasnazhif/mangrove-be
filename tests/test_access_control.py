@@ -1,96 +1,92 @@
+import base64
+import json
+import re
+
 import pytest
 from fastapi.routing import APIRoute
-from fastapi.testclient import TestClient
 
 from app.api.deps import optional_user, require_manager
 from app.core.config import settings
 from app.core.security import create_session_token
 from app.main import app
+from app.models.user import UserRole
 
-# Set of allowed explicit access dependencies
-EXPLICIT_ACCESS_DEPENDENCIES = {require_manager, optional_user}
+# A private route changed to optional_user must fail the audit. New public routes
+# require deliberate review here, instead of silently escaping authorization tests.
+PUBLIC_ROUTES = {
+    ("GET", "/api/v1/health"),
+    ("POST", "/api/v1/auth/login"),
+    ("GET", "/api/v1/auth/csrf"),
+}
 
-# Endpoints that are explicitly public or documentation (exempt from require_manager)
-EXEMPT_DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
 
-
-def get_all_api_routes() -> list[APIRoute]:
-    """Retrieve all defined APIRoutes in the application."""
-    routes: list[APIRoute] = []
+def api_routes():
+    routes = []
     for route in app.routes:
-        if isinstance(route, APIRoute) and route.path not in EXEMPT_DOCS_PATHS:
+        if isinstance(route, APIRoute):
             routes.append(route)
+        elif hasattr(route, "effective_route_contexts"):
+            routes.extend(r for r in route.effective_route_contexts() if hasattr(r, "dependant"))
     return routes
 
 
-def test_no_route_without_explicit_access_dependency():
-    """Verify that EVERY API route in the application declares an explicit access dependency.
+def manager_routes():
+    return [
+        (method, route.path)
+        for route in api_routes()
+        for method in route.methods
+        if (method, route.path) not in PUBLIC_ROUTES
+    ]
 
-    This ensures no route is accidentally made public or left unguarded.
-    Allowed dependencies: `require_manager` or `optional_user`.
-    """
-    routes = get_all_api_routes()
-    missing_dependency_routes: list[str] = []
 
+def test_every_route_has_explicit_expected_access():
+    routes = api_routes()
+    assert routes, "Route audit must never pass without scanning routes"
+    paths = {route.path for route in routes}
+    assert paths == set(app.openapi()["paths"])
     for route in routes:
-        # Collect dependencies from route.dependencies and endpoint parameter default Depends
-        all_deps = set()
+        dependencies = {dependency.call for dependency in route.dependant.dependencies}
+        for method in route.methods:
+            expected = optional_user if (method, route.path) in PUBLIC_ROUTES else require_manager
+            assert expected in dependencies, f"{method} {route.path} needs {expected.__name__}"
 
-        for dep in route.dependencies:
-            all_deps.add(dep.dependency)
 
-        # Also inspect endpoint parameter dependencies
-        if hasattr(route, "dependant"):
-            for sub_dep in route.dependant.dependencies:
-                all_deps.add(sub_dep.call)
-
-        # Check if any explicit access dependency is declared
-        if not (all_deps & EXPLICIT_ACCESS_DEPENDENCIES) and route.path not in {
-            "/api/v1/auth/login",
-            "/api/v1/auth/logout",
-            "/api/v1/auth/csrf",
-        }:
-            missing_dependency_routes.append(f"{route.methods} {route.path}")
-
-    assert not missing_dependency_routes, (
-        f"The following routes lack an explicit access dependency ({EXPLICIT_ACCESS_DEPENDENCIES}): "
-        f"{missing_dependency_routes}"
+@pytest.mark.parametrize("method,path", manager_routes())
+@pytest.mark.parametrize(
+    "attack", ["anonymous", "visitor", "forged-jwt", "role-header", "role-query"]
+)
+def test_manager_routes_reject_modified_requests(client, manager, db_mock, method, path, attack):
+    headers = {}
+    if attack in {"visitor", "forged-jwt"}:
+        manager.role = UserRole.visitor
+        token = create_session_token(manager.id, "visitor")
+        if attack == "forged-jwt":
+            head, payload, signature = token.split(".")
+            data = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+            data["role"] = "manager"
+            payload = base64.urlsafe_b64encode(json.dumps(data).encode()).decode().rstrip("=")
+            token = f"{head}.{payload}.{signature}"
+        client.cookies.set(settings.session_cookie_name, token)
+    elif attack == "role-header":
+        headers = {"X-Role": "manager", "X-User-Role": "manager"}
+    elif attack == "role-query":
+        path += "?role=manager"
+    path = re.sub(r"\{[^}]+\}", "00000000-0000-0000-0000-000000000001", path)
+    response = client.request(method, path, headers=headers)
+    assert response.status_code == (403 if attack == "visitor" else 401)
+    assert not any(
+        value in response.text for value in [manager.email, "hashed_password", "csrf_token"]
     )
+    db_mock.commit.assert_not_awaited()
 
 
-@pytest.mark.parametrize(
-    "path,method",
-    [
-        ("/api/v1/me", "GET"),
-        ("/api/v1/auth/me", "GET"),
-    ],
-)
-def test_manager_routes_deny_anonymous(path: str, method: str):
-    """Anonymous requests to manager routes must return 401 with no private fields leaked."""
-    client = TestClient(app)
-    response = client.request(method, path)
-    assert response.status_code == 401
-    body = response.json()
-    # Ensure standard error structure without sensitive internal leaks
-    assert "detail" in body
-    assert not any(key in body for key in ["password", "hashed_password", "token", "secret"])
+def test_anonymous_public_access_does_not_open_database():
+    from unittest.mock import patch
 
+    from fastapi.testclient import TestClient
 
-@pytest.mark.parametrize(
-    "path,method",
-    [
-        ("/api/v1/me", "GET"),
-        ("/api/v1/auth/me", "GET"),
-    ],
-)
-def test_manager_routes_deny_visitor_role(path: str, method: str):
-    """Authenticated visitor requests to manager routes must return 403."""
-    client = TestClient(app)
-    visitor_token = create_session_token("visitor-id", "visitor")
-    client.cookies.set(settings.session_cookie_name, visitor_token)
-
-    response = client.request(method, path)
-    assert response.status_code == 403
-    body = response.json()
-    assert "detail" in body
-    assert "Manager access required" in body["detail"]
+    with patch("app.api.deps.SessionLocal") as session_factory:
+        with TestClient(app) as client:
+            assert client.get("/api/v1/health").status_code == 200
+            assert client.get("/api/v1/auth/csrf").status_code == 200
+        session_factory.assert_not_called()

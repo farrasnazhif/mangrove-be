@@ -75,6 +75,11 @@ uv run uvicorn app.main:app --reload --port 8080
 uv run pytest
 ```
 
+Task 03: ikuti [panduan seed, migrasi, dan pemeriksaan bersama](TASK03_TESTING.md).
+Tes PostGIS hanya berjalan jika `TEST_DATABASE_URL` diatur; selain itu ditandai skipped.
+Seed dijalankan dengan `uv run python -m app.db.seed` setelah `uv run alembic upgrade head`.
+Login membutuhkan token dari `GET /api/v1/auth/csrf` pada header `X-CSRF-Token`.
+
 ## Layout
 
 - `app/api/v1/` routers, `app/models/` ORM, `app/schemas/` Pydantic (public vs manager separate)

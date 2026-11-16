@@ -1,11 +1,19 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.user import UserRole
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    model_config = ConfigDict(extra="forbid")
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def password_byte_limit(cls, value: str) -> str:
+        if len(value.encode()) > 72:
+            raise ValueError("Password exceeds bcrypt's 72 UTF-8 byte limit")
+        return value
 
 
 class UserResponse(BaseModel):

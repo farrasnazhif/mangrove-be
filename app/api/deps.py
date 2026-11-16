@@ -30,13 +30,8 @@ async def get_optional_session(
         return
 
     try:
-        payload = decode_session_token(token)
+        decode_session_token(token)
     except HTTPException:
-        yield None
-        return
-
-    # If role is not manager, protected endpoints don't need DB lookup to reject
-    if payload.get("role") != UserRole.manager.value:
         yield None
         return
 
@@ -66,7 +61,7 @@ async def get_current_user(
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or payload.get("ver") != (user.session_version or 0):
         return None
 
     return user
@@ -103,13 +98,6 @@ async def require_manager(
             detail=exc.detail,
         ) from exc
 
-    role = payload.get("role")
-    if role != UserRole.manager.value:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Manager access required",
-        )
-
     user_id = payload.get("sub")
     if not user_id or session is None:
         raise HTTPException(
@@ -121,17 +109,23 @@ async def require_manager(
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if user is None or not user.is_active or user.role != UserRole.manager:
+    if user is None or not user.is_active or payload.get("ver") != (user.session_version or 0):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
         )
 
+    if user.role != UserRole.manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    await verify_csrf(request)
     return user
 
 
 async def verify_csrf(request: Request) -> None:
-    """Verify CSRF token for state-changing requests when session cookie is present."""
+    """Cookie-authenticated writes require a signed session-bound CSRF token."""
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
     session_cookie = request.cookies.get(settings.session_cookie_name)
     if not session_cookie:
         return
@@ -139,8 +133,21 @@ async def verify_csrf(request: Request) -> None:
     csrf_header = request.headers.get("x-csrf-token")
     csrf_cookie = request.cookies.get(settings.csrf_cookie_name)
 
-    if not csrf_header or not csrf_cookie or not verify_csrf_token(csrf_header, csrf_cookie):
+    if (
+        not csrf_header
+        or not csrf_cookie
+        or not verify_csrf_token(csrf_header, csrf_cookie, session_cookie)
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="CSRF token validation failed",
         )
+
+
+async def verify_login_csrf(request: Request) -> None:
+    """Login also needs CSRF, including when no session exists yet."""
+    header = request.headers.get("x-csrf-token", "")
+    cookie = request.cookies.get(settings.csrf_cookie_name, "")
+    session_token = request.cookies.get(settings.session_cookie_name, "")
+    if not verify_csrf_token(header, cookie, session_token):
+        raise HTTPException(status_code=403, detail="CSRF token validation failed")

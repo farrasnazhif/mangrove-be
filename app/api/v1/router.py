@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from app.api.deps import optional_user, require_manager
 from app.api.v1.auth import auth_router
@@ -18,6 +18,7 @@ async def health(_: User | None = Depends(optional_user)) -> dict[str, str]:
 
 
 @api_router.get("/me", response_model=UserResponse, tags=["auth"])
-async def me(user: User = Depends(require_manager)) -> UserResponse:
+async def me(response: Response, user: User = Depends(require_manager)) -> UserResponse:
     """Return currently authenticated user with server-derived role."""
+    response.headers["Cache-Control"] = "no-store"
     return UserResponse.model_validate(user)

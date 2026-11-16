@@ -1,281 +1,188 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import patch
 
 import jwt
 import pytest
-from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
+from fastapi import HTTPException
 
-from app.api.deps import get_optional_session, verify_csrf
-from app.core.config import settings
-from app.core.security import create_session_token, hash_password
-from app.db.session import get_session
-from app.main import app
-from app.models.user import User, UserRole
+from app.core.config import Settings, settings
+from app.core.security import (
+    create_session_token,
+    decode_session_token,
+    generate_csrf_token,
+    hash_password,
+    verify_csrf_token,
+    verify_password,
+)
+from app.models.user import UserRole
+from tests.conftest import authenticate
 
 
-# Fixture for a test manager
-@pytest.fixture
-def mock_manager() -> User:
-    return User(
-        id="usr-123",
-        email="manager@surabaya.go.id",
-        hashed_password=hash_password("password123"),
-        role=UserRole.manager,
-        is_active=True,
+def login(client, **changes):
+    csrf = client.get("/api/v1/auth/csrf").json()["csrf_token"]
+    payload = {"email": "manager@example.test", "password": "test-password-123", **changes}
+    return client.post("/api/v1/auth/login", json=payload, headers={"X-CSRF-Token": csrf})
+
+
+def test_login_success(client):
+    response = login(client)
+    assert response.status_code == 200
+    assert response.json()["user"]["role"] == "manager"
+    assert "hashed_password" not in response.text
+    cookies = response.headers.get_list("set-cookie")
+    assert any("HttpOnly" in cookie and "SameSite=lax" in cookie for cookie in cookies)
+    assert response.headers["cache-control"] == "no-store"
+    assert client.get("/api/v1/me").status_code == 200
+
+
+def test_login_secure_cookie(client, monkeypatch):
+    client.base_url = "https://testserver"
+    monkeypatch.setattr(settings, "session_cookie_secure", True)
+    response = login(client)
+    assert response.status_code == 200
+    assert all("Secure" in cookie for cookie in response.headers.get_list("set-cookie"))
+
+
+@pytest.mark.parametrize(
+    "case,expected",
+    [
+        ("wrong-password", 401),
+        ("missing", 401),
+        ("inactive", 403),
+        ("visitor", 403),
+    ],
+)
+def test_rejected_login(client, manager, db_mock, case, expected):
+    if case == "missing":
+        db_mock.execute.return_value.scalar_one_or_none.return_value = None
+    elif case == "inactive":
+        manager.is_active = False
+    elif case == "visitor":
+        manager.role = UserRole.visitor
+    response = login(client, password="wrong" if case == "wrong-password" else "test-password-123")
+    assert response.status_code == expected
+
+
+def test_login_requires_csrf(client):
+    response = client.post("/api/v1/auth/login", json={"email": "a@b", "password": "secret"})
+    assert response.status_code == 403
+
+
+def test_login_rejects_role_in_body(client):
+    assert login(client, role="manager").status_code == 422
+
+
+@pytest.mark.parametrize("path", ["/api/v1/me", "/api/v1/auth/me"])
+def test_get_me_uses_database_role(client, manager, path):
+    authenticate(client, manager, role="visitor")
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.json()["role"] == "manager"
+
+
+def test_demoted_manager_denied_despite_signed_manager_claim(client, manager):
+    authenticate(client, manager)
+    manager.role = UserRole.visitor
+    assert client.get("/api/v1/me").status_code == 403
+
+
+def test_inactive_manager_denied(client, manager):
+    authenticate(client, manager)
+    manager.is_active = False
+    assert client.get("/api/v1/me").status_code == 401
+
+
+def test_logout_revokes_and_clears_cookies(client, manager, db_mock):
+    response = login(client)
+    assert response.status_code == 200
+    headers = {"X-CSRF-Token": response.json()["csrf_token"]}
+    old_token = client.cookies.get(settings.session_cookie_name)
+    response = client.post("/api/v1/auth/logout", headers=headers)
+    assert response.status_code == 200
+    assert settings.session_cookie_name not in client.cookies
+    assert settings.csrf_cookie_name not in client.cookies
+    db_mock.commit.assert_awaited_once()
+    # DB integration test separately proves that the UPDATE persists.
+    manager.session_version = 1
+    client.cookies.set(settings.session_cookie_name, old_token)
+    assert client.get("/api/v1/me").status_code == 401
+
+
+@pytest.mark.parametrize("case", ["missing", "wrong", "forged", "other-session", "expired"])
+def test_real_logout_csrf(client, manager, db_mock, case):
+    headers = authenticate(client, manager)
+    if case == "missing":
+        headers = {}
+    elif case == "wrong":
+        headers = {"X-CSRF-Token": "wrong"}
+    else:
+        if case == "forged":
+            csrf = "attacker-controlled-cookie-and-header"
+        elif case == "other-session":
+            csrf = generate_csrf_token(create_session_token(manager.id, "manager"))
+        else:
+            with patch("app.core.security.time.time", return_value=1):
+                csrf = generate_csrf_token(client.cookies.get(settings.session_cookie_name))
+        client.cookies.set(settings.csrf_cookie_name, csrf)
+        headers = {"X-CSRF-Token": csrf}
+    assert client.post("/api/v1/auth/logout", headers=headers).status_code == 403
+    db_mock.commit.assert_not_awaited()
+
+
+def test_expired_session_cannot_read_or_write(client, manager, db_mock):
+    payload = jwt.decode(
+        create_session_token(manager.id, "manager"),
+        settings.jwt_secret,
+        algorithms=["HS256"],
     )
+    payload["exp"] = datetime.now(UTC) - timedelta(seconds=5)
+    expired = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    client.cookies.set(settings.session_cookie_name, expired)
+    assert client.get("/api/v1/me").status_code == 401
+    assert client.post("/api/v1/auth/logout").status_code == 401
+    db_mock.commit.assert_not_awaited()
 
 
-# Fixture for a test visitor
-@pytest.fixture
-def mock_visitor() -> User:
-    return User(
-        id="usr-456",
-        email="visitor@public.com",
-        hashed_password=hash_password("visitor123"),
-        role=UserRole.visitor,
-        is_active=True,
-    )
+def test_refresh_csrf_allows_logout(client, manager):
+    authenticate(client, manager)
+    csrf = client.get("/api/v1/auth/csrf").json()["csrf_token"]
+    assert client.post("/api/v1/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 200
 
 
-def test_login_success(mock_manager):
-    """Test successful manager login returning HttpOnly session cookie and CSRF token."""
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_manager
-    mock_session.execute.return_value = mock_result
-
-    async def override_session():
-        yield mock_session
-
-    app.dependency_overrides[get_session] = override_session
-    client = TestClient(app)
-
-    try:
-        resp = client.post(
-            "/api/v1/auth/login",
-            json={"email": "manager@surabaya.go.id", "password": "password123"},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["user"]["email"] == "manager@surabaya.go.id"
-        assert data["user"]["role"] == "manager"  # server-derived role
-        assert "csrf_token" in data
-
-        # Check cookies
-        cookies = resp.cookies
-        assert settings.session_cookie_name in cookies
-        assert settings.csrf_cookie_name in cookies
-    finally:
-        app.dependency_overrides.clear()
+def test_password_hashing_and_malformed_inputs(password_hash):
+    assert verify_password("test-password-123", password_hash)
+    assert not verify_password("wrong", password_hash)
+    assert not verify_password("a" * 73, password_hash)
+    assert not verify_password("secret", "corrupted-hash")
+    with pytest.raises(ValueError):
+        hash_password("a" * 73)
 
 
-def test_login_wrong_password(mock_manager):
-    """Test login failure on incorrect password."""
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_manager
-    mock_session.execute.return_value = mock_result
-
-    async def override_session():
-        yield mock_session
-
-    app.dependency_overrides[get_session] = override_session
-    client = TestClient(app)
-
-    try:
-        resp = client.post(
-            "/api/v1/auth/login",
-            json={"email": "manager@surabaya.go.id", "password": "wrongpassword"},
-        )
-        assert resp.status_code == 401
-        assert "Invalid email or password" in resp.json()["detail"]
-    finally:
-        app.dependency_overrides.clear()
+def test_missing_exp_claim_is_rejected():
+    token = jwt.encode({"sub": "a", "role": "manager"}, settings.jwt_secret, algorithm="HS256")
+    with pytest.raises(HTTPException) as error:
+        decode_session_token(token)
+    assert error.value.status_code == 401
 
 
-def test_login_nonexistent_user():
-    """Test login failure when user does not exist."""
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = None
-    mock_session.execute.return_value = mock_result
-
-    async def override_session():
-        yield mock_session
-
-    app.dependency_overrides[get_session] = override_session
-    client = TestClient(app)
-
-    try:
-        resp = client.post(
-            "/api/v1/auth/login",
-            json={"email": "unknown@domain.com", "password": "password123"},
-        )
-        assert resp.status_code == 401
-    finally:
-        app.dependency_overrides.clear()
+def test_csrf_is_bound_to_session():
+    csrf = generate_csrf_token("session-a")
+    assert verify_csrf_token(csrf, csrf, "session-a")
+    assert not verify_csrf_token(csrf, csrf, "session-b")
 
 
-def test_login_inactive_user(mock_manager):
-    """Test login rejected for inactive account."""
-    mock_manager.is_active = False
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_manager
-    mock_session.execute.return_value = mock_result
-
-    async def override_session():
-        yield mock_session
-
-    app.dependency_overrides[get_session] = override_session
-    client = TestClient(app)
-
-    try:
-        resp = client.post(
-            "/api/v1/auth/login",
-            json={"email": "manager@surabaya.go.id", "password": "password123"},
-        )
-        assert resp.status_code == 403
-        assert "inactive" in resp.json()["detail"].lower()
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_get_me_authenticated(mock_manager):
-    """Test /api/v1/me and /api/v1/auth/me return the server-derived role for authenticated manager."""
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_manager
-    mock_session.execute.return_value = mock_result
-
-    async def override_session(request=None):
-        yield mock_session
-
-    app.dependency_overrides[get_optional_session] = override_session
-    client = TestClient(app)
-
-    try:
-        token = create_session_token("usr-123", "manager")
-        client.cookies.set(settings.session_cookie_name, token)
-
-        # Test /api/v1/me
-        resp_me = client.get("/api/v1/me")
-        assert resp_me.status_code == 200
-        assert resp_me.json()["role"] == "manager"
-        assert resp_me.json()["email"] == "manager@surabaya.go.id"
-
-        # Test /api/v1/auth/me
-        resp_auth_me = client.get("/api/v1/auth/me")
-        assert resp_auth_me.status_code == 200
-        assert resp_auth_me.json()["role"] == "manager"
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_get_me_unauthenticated():
-    """Test anonymous visitor receives 401 when accessing manager /me endpoint."""
-    client = TestClient(app)
-    resp = client.get("/api/v1/me")
-    assert resp.status_code == 401
-    assert "Authentication required" in resp.json()["detail"]
-
-
-def test_get_me_visitor_role_forbidden(mock_visitor):
-    """Test that a non-manager authenticated user receives 403 on manager-only route."""
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_visitor
-    mock_session.execute.return_value = mock_result
-
-    async def override_session(request=None):
-        yield mock_session
-
-    app.dependency_overrides[get_optional_session] = override_session
-    client = TestClient(app)
-
-    try:
-        token = create_session_token("usr-456", "visitor")
-        client.cookies.set(settings.session_cookie_name, token)
-
-        resp = client.get("/api/v1/me")
-        assert resp.status_code == 403
-        assert "Manager access required" in resp.json()["detail"]
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_expired_session_cannot_read_or_write(mock_manager):
-    """Test that an expired session token is rejected with 401."""
-    client = TestClient(app)
-
-    # Generate an expired token
-    expired_payload = {
-        "sub": "usr-123",
-        "role": "manager",
-        "exp": datetime.now(UTC) - timedelta(hours=1),
-        "iat": datetime.now(UTC) - timedelta(hours=2),
-    }
-    expired_token = jwt.encode(expired_payload, settings.jwt_secret, algorithm="HS256")
-    client.cookies.set(settings.session_cookie_name, expired_token)
-
-    resp = client.get("/api/v1/me")
-    assert resp.status_code == 401
-    assert "expired" in resp.json()["detail"].lower()
-
-
-def test_logout():
-    """Test logout clears session and CSRF cookies."""
-    client = TestClient(app)
-    client.cookies.set(settings.session_cookie_name, "dummy-token")
-    client.cookies.set(settings.csrf_cookie_name, "dummy-csrf")
-
-    resp = client.post("/api/v1/auth/logout")
-    assert resp.status_code == 200
-    assert resp.json()["message"] == "Logged out successfully"
-
-
-def test_csrf_token_endpoint():
-    """Test GET /api/v1/auth/csrf returns valid CSRF token."""
-    client = TestClient(app)
-    resp = client.get("/api/v1/auth/csrf")
-    assert resp.status_code == 200
-    csrf_token = resp.json()["csrf_token"]
-    assert len(csrf_token) == 64  # secrets.token_hex(32) produces 64 hex characters
-
-
-def test_csrf_protection_dependency():
-    """Test CSRF protection on state-changing calls."""
-    test_app = FastAPI()
-
-    @test_app.post("/test-mutation", dependencies=[Depends(verify_csrf)])
-    def mutation_route():
-        return {"status": "mutated"}
-
-    client = TestClient(test_app)
-
-    # Case 1: No session cookie -> passes (e.g. public mutation if any)
-    resp = client.post("/test-mutation")
-    assert resp.status_code == 200
-
-    # Case 2: Session cookie present, but missing CSRF header -> 403 Forbidden
-    client.cookies.set(settings.session_cookie_name, "session-token")
-    client.cookies.set(settings.csrf_cookie_name, "csrf-token-abc")
-    resp_no_header = client.post("/test-mutation")
-    assert resp_no_header.status_code == 403
-    assert "CSRF" in resp_no_header.json()["detail"]
-
-    # Case 3: Session cookie present, CSRF header invalid -> 403 Forbidden
-    resp_invalid_header = client.post(
-        "/test-mutation",
-        headers={"x-csrf-token": "wrong-token"},
-    )
-    assert resp_invalid_header.status_code == 403
-
-    # Case 4: Session cookie present, CSRF header matches cookie -> 200 OK
-    resp_valid = client.post(
-        "/test-mutation",
-        headers={"x-csrf-token": "csrf-token-abc"},
-    )
-    assert resp_valid.status_code == 200
-    assert resp_valid.json() == {"status": "mutated"}
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"boundary_lon_min": 10, "boundary_lon_max": 9},
+        {"boundary_lat_min": 91},
+        {"boundary_approved": True},
+        {"session_cookie_samesite": "none", "session_cookie_secure": False},
+        {"environment": "production", "session_cookie_secure": False},
+        {"environment": "production", "session_cookie_secure": True, "jwt_secret": "change-me"},
+    ],
+)
+def test_invalid_config_fails_closed(changes):
+    config = {"database_url": "postgresql+asyncpg://test/test", "jwt_secret": "test", **changes}
+    with pytest.raises(ValueError):
+        Settings(_env_file=None, **config)
