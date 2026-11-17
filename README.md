@@ -66,7 +66,7 @@ uv sync
 3. Start the API, then open http://localhost:8080/docs:
 
 ```sh
-uv run uvicorn app.main:app --reload --port 8080
+uv run uvicorn app.main:app --reload --port 8080 --no-access-log --log-config logging.json
 ```
 
 ## Test
@@ -79,6 +79,22 @@ Task 03: ikuti [panduan seed, migrasi, dan pemeriksaan bersama](TASK03_TESTING.m
 Tes PostGIS hanya berjalan jika `TEST_DATABASE_URL` diatur; selain itu ditandai skipped.
 Seed dijalankan dengan `uv run python -m app.db.seed` setelah `uv run alembic upgrade head`.
 Login membutuhkan token dari `GET /api/v1/auth/csrf` pada header `X-CSRF-Token`.
+
+Task 01: [panduan Foundation dan pemeriksaan pengguna](TASK01_TESTING.md).
+Kontrak frontend: [contracts/openapi.json](contracts/openapi.json), dengan
+[penjelasan status implementasi dan perubahan kontrak](contracts/README.md).
+Route fitur planned mengembalikan 501; schema 2xx-nya belum berarti fitur tersebut tersedia.
+Error API sekarang memakai `{code, message, details, request_id}`, menggantikan `detail`.
+
+Untuk log JSON beserta request ID:
+
+```sh
+uv run uvicorn app.main:app --reload --port 8080 --no-access-log --log-config logging.json
+```
+
+Image produksi dibangun dengan `docker build -t mangrove-be:task01 .`; jalankan image
+yang sama pada staging/production dengan env masing-masing. Contoh env tersedia di
+`config/`; secret lokal dan file `.env.*` tidak dimasukkan Git maupun build context.
 
 ## Layout
 

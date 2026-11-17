@@ -76,7 +76,7 @@ seed berhenti agar perubahan batas tidak terjadi diam-diam.
 Terminal pertama:
 
 ```powershell
-uv run uvicorn app.main:app --reload --port 8080
+uv run uvicorn app.main:app --reload --port 8080 --no-access-log --log-config logging.json
 ```
 
 Terminal kedua:

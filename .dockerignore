@@ -1,0 +1,15 @@
+# Allowlist: local secrets and Git history never enter the build context.
+*
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!alembic.ini
+!logging.json
+!app/
+!app/**
+!alembic/
+!alembic/**
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.env.*

@@ -1,0 +1,81 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, 03-auth-and-accesss]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: mangrove
+          POSTGRES_PASSWORD: mangrove
+          POSTGRES_DB: mangrove
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mangrove -d mangrove"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://mangrove:mangrove@127.0.0.1:5432/mangrove
+      TEST_DATABASE_URL: postgresql+asyncpg://mangrove:mangrove@127.0.0.1:5432/mangrove
+      JWT_SECRET: ci-only-nonproduction-secret-at-least-32-bytes
+      ENVIRONMENT: test
+      SESSION_COOKIE_SECURE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install uv==0.13.7
+      - run: uv sync --frozen
+      - name: Lint and types
+        run: |
+          uv run ruff check .
+          uv run mypy app
+      - name: Migration graph and clean database round trip
+        run: |
+          uv run python -m scripts.check_migrations
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+      - name: Tests including real PostGIS and reviewed OpenAPI
+        run: |
+          uv run pytest -q
+          uv run python -m scripts.export_openapi --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-contract
+          path: contracts/openapi.json
+
+  image:
+    name: Production image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: docker build -t mangrove-be:task01 .
+      - run: python scripts/smoke_image.py mangrove-be:task01
+
+  required:
+    name: Backend required
+    if: always()
+    needs: [checks, image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every backend job to succeed
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          IMAGE_RESULT: ${{ needs.image.result }}
+        run: |
+          test "$CHECKS_RESULT" = success
+          test "$IMAGE_RESULT" = success

@@ -1,4 +1,30 @@
-# Status terbaru Task 03 — 16 November 2026
+# Status terbaru Task 01 — 17 November 2026
+
+Branch kerja `03-auth-and-accesss`, melanjutkan baseline yang sudah dipush (`d1f9bbd`).
+Sesuai arahan pengguna pada 17 November 2026, perubahan Foundation dipindahkan dari
+branch `01-foundation` ke branch ini tanpa mengubah kode atau menghilangkan perubahan.
+Task berikutnya dilanjutkan pada branch yang sama; commit dan status tetap per task.
+Kode tersisa Foundation sudah dibuat: workflow CI PostGIS, single-head guard, Dockerfile
+produksi, contoh env staging/production, request ID, envelope error, JSON logs, pagination,
+kontrak seluruh 19 operasi P0 PRD 9.4, snapshot OpenAPI dan contract tests.
+
+Hasil: **157 tests passed** termasuk PostGIS; Ruff dan mypy bersih; satu Alembic head;
+snapshot OpenAPI cocok. Image produksi yang sama lolos smoke lokal staging dan production.
+Endpoint fitur yang belum diimplementasikan memiliki schema dan mengembalikan 501.
+
+Pengguna menjalankan `scripts/verify_task01.py` pada 17 November 2026: seluruh 9
+pemeriksaan PASS, mencakup health, penolakan anonim, 404, planned 501, pagination,
+allowlist sort/filter, Swagger dan kecocokan snapshot OpenAPI. Request ID dan envelope
+response ikut diverifikasi. Tampilan log JSON di terminal belum dikonfirmasi pengguna.
+
+Masih perlu: workflow berjalan di GitHub setelah push,
+dan required status check **Backend required** pada main. Belum ada perubahan protection
+atau deployment ke hosting eksternal. Task 01 belum ditandai Done keseluruhan.
+Panduan: [TASK01_TESTING.md](TASK01_TESTING.md).
+
+---
+
+# Status Task 03 — hasil verifikasi sebelum Foundation
 
 Implementasi Task 03 yang tersedia telah diperiksa bersama pengguna. Hasil pemeriksaan:
 **67 tes tanpa database lulus**, **1 tes integrasi PostGIS lulus** (dijalankan terpisah),
