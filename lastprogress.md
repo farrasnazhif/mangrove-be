@@ -9,7 +9,7 @@ publication terikat plot dan approval, metadata species/tree, archive dan row ve
 Verifikasi lokal: **164 tests passed** termasuk PostGIS Task 02 dan regresi Task 03;
 Ruff/mypy bersih, satu migration head dan kontrak OpenAPI cocok. Upgrade dari skema
 lama, clean upgrade dan downgrade diuji pada schema sementara yang di-rollback.
-Schema aplikasi pengguna belum dimigrasikan. Rincian: [TASK02_TESTING.md](TASK02_TESTING.md).
+Schema aplikasi pengguna belum dimigrasikan. Rincian: [testing guide](docs/testing.md).
 Checklist implementasi dan Done-when Task 02 di BACKLOG sudah ditandai selesai;
 perubahan Task 02 dikirim melalui branch `03-auth-and-accesss` sesuai arahan pengguna.
 Status commit/push dapat dilihat melalui riwayat Git; hasil CI GitHub dan merge PR
@@ -39,7 +39,7 @@ response ikut diverifikasi. Tampilan log JSON di terminal belum dikonfirmasi pen
 Masih perlu: workflow berjalan di GitHub setelah push,
 dan required status check **Backend required** pada main. Belum ada perubahan protection
 atau deployment ke hosting eksternal. Task 01 belum ditandai Done keseluruhan.
-Panduan: [TASK01_TESTING.md](TASK01_TESTING.md).
+Panduan: [testing guide](docs/testing.md).
 
 ---
 
@@ -65,7 +65,7 @@ layer, serta revokasi sesi pada DB nyata terverifikasi.
 | 3. Seed dataset | Migrasi, idempotensi seed, preservasi password, jumlah entity dan constraint PostGIS terverifikasi | Alur review/publish/report saat fitur terkait tersedia |
 | 4. Pengujian | 67 tes tanpa DB lulus; 1 integrasi PostGIS lulus; script pemeriksaan API pengguna seluruhnya PASS | Tambahkan cakupan saat route baru dibuat |
 
-Panduan: [TASK03_TESTING.md](TASK03_TESTING.md). Implementasi dan pengujian komponen
+Panduan: [testing guide](docs/testing.md). Implementasi dan pengujian komponen
 Task 03 yang tersedia sudah lulus. Task 03 **belum memenuhi seluruh acceptance backlog**:
 pemakaian predicate pada endpoint creation/publication/chatbot dan alur review/publish/
 report end to end menunggu fitur task berikutnya. Jangan menandai kriteria tersebut

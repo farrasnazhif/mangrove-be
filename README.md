@@ -75,27 +75,28 @@ uv run uvicorn app.main:app --reload --port 8080 --no-access-log --log-config lo
 uv run pytest
 ```
 
-Task 03: ikuti [panduan seed, migrasi, dan pemeriksaan bersama](TASK03_TESTING.md).
-Tes PostGIS hanya berjalan jika `TEST_DATABASE_URL` diatur; selain itu ditandai skipped.
-Seed dijalankan dengan `uv run python -m app.db.seed` setelah `uv run alembic upgrade head`.
-Login membutuhkan token dari `GET /api/v1/auth/csrf` pada header `X-CSRF-Token`.
+See the [testing guide](docs/testing.md) for migrations, synthetic seed data,
+PostGIS integration tests, API checks, and production image smoke tests.
+PostGIS tests require an explicit `TEST_DATABASE_URL`; otherwise they are skipped.
+Apply migrations with `uv run alembic upgrade head` before running the seed command,
+`uv run python -m app.db.seed`.
+Login requires a token from `GET /api/v1/auth/csrf` in the `X-CSRF-Token` header.
 
-Task 01: [panduan Foundation dan pemeriksaan pengguna](TASK01_TESTING.md).
-Task 02: [skema, migrasi, provenance dan verifikasi constraint PostGIS](TASK02_TESTING.md).
-Kontrak frontend: [contracts/openapi.json](contracts/openapi.json), dengan
-[penjelasan status implementasi dan perubahan kontrak](contracts/README.md).
-Route fitur planned mengembalikan 501; schema 2xx-nya belum berarti fitur tersebut tersedia.
-Error API sekarang memakai `{code, message, details, request_id}`, menggantikan `detail`.
+The frontend contract is available in [contracts/openapi.json](contracts/openapi.json).
+See the [contract guide](contracts/README.md) for implementation status and updates.
+Planned feature routes return 501; a documented 2xx schema does not mean a feature
+is implemented. API errors use `{code, message, details, request_id}`.
 
-Untuk log JSON beserta request ID:
+To enable JSON logs with request IDs:
 
 ```sh
 uv run uvicorn app.main:app --reload --port 8080 --no-access-log --log-config logging.json
 ```
 
-Image produksi dibangun dengan `docker build -t mangrove-be:task01 .`; jalankan image
-yang sama pada staging/production dengan env masing-masing. Contoh env tersedia di
-`config/`; secret lokal dan file `.env.*` tidak dimasukkan Git maupun build context.
+Build the production image with `docker build -t mangrove-be:local .` and run the
+same image in staging and production with environment-specific settings. Configuration
+examples are available in `config/`; local secrets and `.env.*` files are excluded
+from Git and the Docker build context.
 
 ## Layout
 

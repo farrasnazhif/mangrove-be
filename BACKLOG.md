@@ -66,7 +66,7 @@ Refs: FR-09, FR-10, FR-11, FR-12, FR-18, FR-36, TR-05, TR-06, TR-07, TR-09, TR-1
 
 Status: **Implemented and verified locally, 17 November 2026.** Migration
 `0002_complete_data_model` extends the existing schema. Evidence and usage:
-[TASK02_TESTING.md](TASK02_TESTING.md). Issue/PR closure remains a repository workflow step.
+[Testing guide](docs/testing.md). Issue/PR closure remains a repository workflow step.
 
 **Tasks**
 
