@@ -152,8 +152,7 @@ are decoded and re-encoded without metadata, and user-bound signed API URLs expi
 after 5 minutes while still requiring Manager authentication. Real PostGIS/MinIO,
 rollback and concurrency tests verify the acceptance requirements. Production
 hosting/credentials remain Task 11; issue/PR closure is a repository workflow step.
-See [Field data guide](docs/field-data.md), [Photo guide](docs/photos.md) and
-[progress report](progress05.md).
+See [Field data guide](docs/field-data.md) and [Photo guide](docs/photos.md).
 
 **Tasks**
 

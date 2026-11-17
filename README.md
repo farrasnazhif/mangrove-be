@@ -111,5 +111,3 @@ benchmark requirements are documented in [calculation guide](docs/calculations.m
 Task 05 audited plot/tree/sediment CRUD, version conflicts and archival behavior
 are documented in [field data guide](docs/field-data.md). Private photo upload,
 local MinIO setup and manual Swagger testing are in [photo guide](docs/photos.md).
-For step-by-step Task 05 testing and success criteria in Indonesian, see
-[TESTING05.md](TESTING05.md).
