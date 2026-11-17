@@ -81,6 +81,7 @@ Seed dijalankan dengan `uv run python -m app.db.seed` setelah `uv run alembic up
 Login membutuhkan token dari `GET /api/v1/auth/csrf` pada header `X-CSRF-Token`.
 
 Task 01: [panduan Foundation dan pemeriksaan pengguna](TASK01_TESTING.md).
+Task 02: [skema, migrasi, provenance dan verifikasi constraint PostGIS](TASK02_TESTING.md).
 Kontrak frontend: [contracts/openapi.json](contracts/openapi.json), dengan
 [penjelasan status implementasi dan perubahan kontrak](contracts/README.md).
 Route fitur planned mengembalikan 501; schema 2xx-nya belum berarti fitur tersebut tersedia.

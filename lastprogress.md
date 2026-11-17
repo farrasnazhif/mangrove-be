@@ -1,4 +1,23 @@
-# Status terbaru Task 01 — 17 November 2026
+# Status terbaru Task 02 — 17 November 2026
+
+Task 02 dilengkapi pada branch kerja yang sama (`03-auth-and-accesss`), mengikuti
+arahan sesi sebelumnya yang tercatat di bawah. Migrasi baru `0002_complete_data_model`
+menambahkan attachments, import provenance, append-only audit, immutable methods/runs,
+publication terikat plot dan approval, metadata species/tree, archive dan row version.
+`users.id` dikonversi ke UUID tanpa mengganti identitas.
+
+Verifikasi lokal: **164 tests passed** termasuk PostGIS Task 02 dan regresi Task 03;
+Ruff/mypy bersih, satu migration head dan kontrak OpenAPI cocok. Upgrade dari skema
+lama, clean upgrade dan downgrade diuji pada schema sementara yang di-rollback.
+Schema aplikasi pengguna belum dimigrasikan. Rincian: [TASK02_TESTING.md](TASK02_TESTING.md).
+Checklist implementasi dan Done-when Task 02 di BACKLOG sudah ditandai selesai;
+perubahan Task 02 dikirim melalui branch `03-auth-and-accesss` sesuai arahan pengguna.
+Status commit/push dapat dilihat melalui riwayat Git; hasil CI GitHub dan merge PR
+perlu diverifikasi terpisah.
+
+---
+
+# Status Task 01 — 17 November 2026
 
 Branch kerja `03-auth-and-accesss`, melanjutkan baseline yang sudah dipush (`d1f9bbd`).
 Sesuai arahan pengguna pada 17 November 2026, perubahan Foundation dipindahkan dari

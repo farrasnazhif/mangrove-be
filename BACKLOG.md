@@ -64,20 +64,24 @@ labels: P0, area:db, type:feature
 depends: 01
 Refs: FR-09, FR-10, FR-11, FR-12, FR-18, FR-36, TR-05, TR-06, TR-07, TR-09, TR-10, TR-16, TR-23, TR-26, §9.3
 
+Status: **Implemented and verified locally, 17 November 2026.** Migration
+`0002_complete_data_model` extends the existing schema. Evidence and usage:
+[TASK02_TESTING.md](TASK02_TESTING.md). Issue/PR closure remains a repository workflow step.
+
 **Tasks**
 
-- Zones, plots, species: `plots.code` CHECK `^VAK-[0-9]+$` and UNIQUE; `area_m2 > 0`; lat/lon range; `geom` SRID 4326 with GiST index; `row_version`; `zones.boundary_geom` and `approved_scope`; UUID primary keys.
-- Trees and attachments: `dbh_cm > 0`, density range check, `qa_status`, `source_import_id` / `source_row_id`, `row_version`; `attachments` with `object_key`, `mime_type`, `visibility` (private by default).
-- Sediment cores and layers: `depth_bottom_cm > depth_top_cm >= 0`, mass and volume > 0, exclusion constraint (`btree_gist` + `numrange`) so intervals cannot overlap within a core.
-- `method_versions` and `calculation_runs`, immutable (trigger or revoked UPDATE/DELETE); `publications` with exactly one `published_run_id` per plot, the run must belong to that plot and be approved.
-- `users`; append-only `audit_events` with no passwords or tokens; `dbh_import_batches` recording Drive file ID, revision, importer, status.
+- [x] Zones, plots, species: `plots.code` CHECK `^VAK-[0-9]+$` and UNIQUE; `area_m2 > 0`; lat/lon range; `geom` SRID 4326 with GiST index; `row_version`; `zones.boundary_geom` and `approved_scope`; UUID primary keys.
+- [x] Trees and attachments: `dbh_cm > 0`, density range check, `qa_status`, `source_import_id` / `source_row_id`, `row_version`; `attachments` with `object_key`, `mime_type`, `visibility` (private by default).
+- [x] Sediment cores and layers: `depth_bottom_cm > depth_top_cm >= 0`, mass and volume > 0, exclusion constraint (`btree_gist` + `numrange`) so intervals cannot overlap within a core.
+- [x] `method_versions` and `calculation_runs`, immutable (trigger or revoked UPDATE/DELETE); `publications` with exactly one `published_run_id` per plot, the run must belong to that plot and be approved.
+- [x] `users`; append-only `audit_events` with no passwords or tokens; `dbh_import_batches` recording Drive file ID, revision, importer, status.
 
 **Done when**
 
-- Duplicate or malformed plot codes, orphan plots and orphan trees are rejected by the DB; the nullable photo link works.
-- Overlapping layers in one core fail at the DB level.
-- Updating a run or pointing a plot at another plot's run fails.
-- Audit rows cannot be updated or deleted by the app role.
+- [x] Duplicate or malformed plot codes, orphan plots and orphan trees are rejected by the DB; the nullable photo link works.
+- [x] Overlapping layers in one core fail at the DB level.
+- [x] Updating a run or pointing a plot at another plot's run fails.
+- [x] Audit rows cannot be updated or deleted by the app role.
 
 ## Step 3
 

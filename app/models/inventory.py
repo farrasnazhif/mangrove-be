@@ -1,7 +1,7 @@
-"""Schema needed by Task 03's synthetic dataset; later tasks extend these entities."""
+"""Inventory and versioned scientific methods (Task 02)."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement, WKTElement
@@ -10,10 +10,12 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID, ExcludeConstraint
@@ -29,6 +31,10 @@ def new_id() -> str:
 class SyntheticRecord:
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=new_id)
     data_label: Mapped[str] = mapped_column(String(32), nullable=False, default="synthetic")
+
+
+class ArchivableRecord:
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Zone(SyntheticRecord, Base):
@@ -48,7 +54,7 @@ class Zone(SyntheticRecord, Base):
     approved_scope: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
-class Plot(SyntheticRecord, Base):
+class Plot(ArchivableRecord, SyntheticRecord, Base):
     __tablename__ = "plots"
     __table_args__ = (
         CheckConstraint("code ~ '^VAK-[0-9]+$'", name="ck_plots_code"),
@@ -77,15 +83,28 @@ class Plot(SyntheticRecord, Base):
 class Species(SyntheticRecord, Base):
     __tablename__ = "species"
     scientific_name: Mapped[str] = mapped_column(String(200), unique=True)
+    display_name: Mapped[str | None] = mapped_column(String(200))
+    default_density: Mapped[float | None] = mapped_column(Float)
+    density_source: Mapped[str | None] = mapped_column(String(500))
+    density_version: Mapped[str | None] = mapped_column(String(100))
+    __table_args__ = (
+        CheckConstraint("default_density > 0 AND default_density <= 2", name="ck_species_density"),
+    )
 
 
-class Tree(SyntheticRecord, Base):
+class Tree(ArchivableRecord, SyntheticRecord, Base):
     __tablename__ = "tree_records"
     __table_args__ = (
         CheckConstraint("dbh_cm > 0", name="ck_trees_dbh"),
         CheckConstraint(
             "wood_density_g_cm3 > 0 AND wood_density_g_cm3 <= 2", name="ck_trees_density"
         ),
+        CheckConstraint("row_version > 0", name="ck_trees_version"),
+        CheckConstraint("height_m > 0", name="ck_trees_height"),
+        CheckConstraint(
+            "(source_import_id IS NULL) = (source_row_id IS NULL)", name="ck_trees_source_pair"
+        ),
+        UniqueConstraint("source_import_id", "source_row_id", name="uq_trees_import_row"),
     )
 
     plot_id: Mapped[str] = mapped_column(ForeignKey("plots.id"), index=True)
@@ -95,16 +114,26 @@ class Tree(SyntheticRecord, Base):
     density_source: Mapped[str] = mapped_column(String(200))
     qa_status: Mapped[str] = mapped_column(String(32), default="synthetic-unreviewed")
     row_version: Mapped[int] = mapped_column(Integer, default=1)
+    photo_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"))
+    source_import_id: Mapped[str | None] = mapped_column(ForeignKey("dbh_import_batches.id"))
+    source_row_id: Mapped[str | None] = mapped_column(String(200))
+    height_m: Mapped[float | None] = mapped_column(Float)
+    notes: Mapped[str | None] = mapped_column(String(2000))
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
 
 
-class SedimentCore(SyntheticRecord, Base):
+class SedimentCore(ArchivableRecord, SyntheticRecord, Base):
     __tablename__ = "sediment_cores"
     plot_id: Mapped[str] = mapped_column(ForeignKey("plots.id"), index=True)
     sample_code: Mapped[str] = mapped_column(String(100), unique=True)
     sample_date: Mapped[date] = mapped_column(Date)
+    row_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    __table_args__ = (CheckConstraint("row_version > 0", name="ck_cores_version"),)
 
 
-class SedimentLayer(SyntheticRecord, Base):
+class SedimentLayer(ArchivableRecord, SyntheticRecord, Base):
     __tablename__ = "sediment_layers"
     __table_args__ = (
         CheckConstraint(
@@ -112,6 +141,7 @@ class SedimentLayer(SyntheticRecord, Base):
         ),
         CheckConstraint("dry_mass_g > 0 AND volume_cm3 > 0", name="ck_layers_mass_volume"),
         CheckConstraint("loi_pct BETWEEN 0 AND 100", name="ck_layers_loi"),
+        CheckConstraint("row_version > 0", name="ck_layers_version"),
         ExcludeConstraint(
             ("core_id", "="),
             (text("numrange(depth_top_cm::numeric, depth_bottom_cm::numeric, '[)')"), "&&"),
@@ -127,6 +157,7 @@ class SedimentLayer(SyntheticRecord, Base):
     volume_cm3: Mapped[float] = mapped_column(Float)
     loi_pct: Mapped[float] = mapped_column(Float)
     qa_status: Mapped[str] = mapped_column(String(32), default="synthetic-unreviewed")
+    row_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
 
 
 class MethodVersion(SyntheticRecord, Base):
@@ -135,3 +166,17 @@ class MethodVersion(SyntheticRecord, Base):
     coefficients_json: Mapped[dict] = mapped_column(JSON)
     references: Mapped[list[str]] = mapped_column(JSON)
     approval_status: Mapped[str] = mapped_column(String(100), default="pending-scientific-approval")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    effective_date: Mapped[date | None] = mapped_column(Date)
+    rounding_rule: Mapped[dict] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
+    __table_args__ = (
+        CheckConstraint(
+            "approval_status IN ('pending-scientific-approval', 'approved', 'rejected')",
+            name="ck_methods_status",
+        ),
+        CheckConstraint(
+            "approval_status <> 'approved' OR (approved_at IS NOT NULL "
+            "AND effective_date IS NOT NULL)",
+            name="ck_methods_approval",
+        ),
+    )
