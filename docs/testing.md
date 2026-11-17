@@ -83,6 +83,19 @@ Scientific golden results and the complete input → calculation → review/publ
 report workflow require the corresponding feature implementations. Schema tests do
 not establish the correctness of carbon equations or implement those API routes.
 
+Task 05 tests in `tests/test_field_data.py` cover audited CRUD, rollback, scope,
+pagination, stale versions, sediment overlap, archival and published snapshots.
+`tests/test_field_concurrency.py` uses two independent database transactions: the
+first edit commits and the stale writer returns 409. It commits fixtures in a
+UUID-named test schema and removes that schema afterward; use a dedicated test
+database. Authorization tests include all new endpoints. Image safety tests in
+`tests/test_photos.py` verify metadata stripping, MIME/content checks, animation,
+size/pixel limits and signed link expiry/user/session binding. Photo API tests in
+`tests/test_photo_api.py` cover transactional cleanup, CSRF, tree links, authenticated
+downloads and real MinIO anonymous denial. See [Field data](field-data.md) and
+[Photo setup/testing](photos.md). CI starts MinIO and supplies the explicit test
+storage variables so the real storage round trip runs alongside PostGIS.
+
 Task 04 now has local equation and replay checks in `tests/test_calc.py`; see the
 [calculation guide](calculations.md). These checks do not replace the missing
 reviewer-signed golden fixture or exercise Task 06 calculation-run/publication APIs.
@@ -99,7 +112,7 @@ uv run python -m app.db.seed
 uv run python -m app.db.seed
 ```
 
-The current revision should be `0002_complete_data_model (head)`. Existing user IDs
+The current revision should be `0003_active_layer_intervals (head)`. Existing user IDs
 must be valid UUID strings before this migration converts their database type.
 Invalid legacy IDs cause a transactional migration failure rather than identity replacement.
 Downgrades remove tables/columns and their data; exercise them only on test databases.
@@ -163,7 +176,8 @@ including sessions in other browser tabs. Expect every check to report PASS.
 For frontend login, fetch `GET /api/v1/auth/csrf` with cookies and send the returned
 token in the `X-CSRF-Token` header on login. Login returns a new session-bound CSRF
 token for subsequent mutations. Fetch a new token when it expires; requests must
-include cookies. Swagger does not currently provide a dedicated CSRF authorization form.
+include cookies. In Swagger, set CSRFToken through the Authorize dialog and update
+it with the new token returned by login.
 
 API errors use `{code, message, details, request_id}`. The response `X-Request-ID`
 must match the body and JSON request log. Logs should not expose credentials,

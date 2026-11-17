@@ -6,6 +6,7 @@ from app.core.cors import APICORSMiddleware
 from app.core.errors import install_error_handlers
 from app.core.observability import RequestContextMiddleware, configure_app_logging
 from app.core.openapi import install_openapi
+from app.core.upload_limit import PhotoUploadLimitMiddleware
 from app.schemas.common import ErrorResponse
 
 configure_app_logging()
@@ -15,6 +16,7 @@ app = FastAPI(
     description="P0 API contract. Routes labelled planned return 501 until their backlog feature is implemented.",
     responses={code: {"model": ErrorResponse} for code in (400, 401, 403, 404, 409, 422, 500, 501)},
 )
+app.add_middleware(PhotoUploadLimitMiddleware)
 app.add_middleware(
     APICORSMiddleware,
     allow_origins=settings.cors_origins,

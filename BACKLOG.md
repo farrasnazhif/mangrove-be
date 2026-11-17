@@ -25,7 +25,7 @@ Answered ones are recorded so the team does not ask again. Open ones unblock the
 | D1  | Scientific method (equations, coefficients, %C = LOI ÷ 1.724) | **Answered: approved as written in PRD §6.** Still open: the reviewer's benchmark fixture (expected results) for golden tests. | 4 |
 | D2  | Boundary of the study area; VAK plot count | **Answered: no boundary file and no coordinates available.** The study-area box (min/max latitude and longitude) is a config value stored in `zones.boundary_geom`. Until a real box is set, seed and tests use a clearly labelled synthetic box and publishing real plots is blocked with a clear error. Plot count unknown, not needed. | 3 |
 | D3  | Auth provider and roles | **Answered: build login ourselves.** Roles assumed Manager only (PRD allows Admin to be merged with Manager for MVP). | 3 |
-| D4  | Hosting, object storage, backups | **Open.** Not configured yet. | 5, 11 |
+| D4  | Hosting, object storage, backups | **Photo storage resolved for Task 05:** private MinIO locally, S3-compatible adapter for production, 5 MiB upload limit, 5-minute user-bound signed API URLs. Hosting, production provider/credentials and backups remain open for Task 11. | 5, 11 |
 | D5  | Area-weighted multi-plot average; publish a plot without sediment (biomass-only) | **Answered: area-weighted average; a plot without sediment data may be published biomass-only**, labelled as incomplete (no SOC, no ecosystem total). Still open, small: cores per plot, rounding, "valid plot" definition. | 6, 7 |
 | D6  | LLM provider; approved general-reference sources | **Answered: OpenAI.** Still open: approved public sources and freshness, out-of-Surabaya wording, cost limit. | 9, 10 |
 | D7  | Map imagery provider; public coordinates and photos | **Answered: public may see coordinates and photos.** Still open: imagery provider (not configured yet). | 7 |
@@ -142,26 +142,35 @@ aggregation and project rounding precision remain unspecified and are not assume
 
 labels: P0, area:api, type:feature
 depends: 01, 02, 03
-needs decision: D4 (photo upload Task)
+needs decision: none blocking (D4 photo-storage implementation resolved; hosting/backups remain Task 11)
 branch: feat/field-data-api
 Refs: FR-09, FR-10, FR-11, FR-12, FR-38, TR-07, TR-12, TR-16, AT-04, §9.3 mutation rules, §9.4, §9.6
 
+Status: **Implementation and local acceptance complete, 17 November 2026.**
+Audited/versioned CRUD, archival and private photo uploads are implemented. Images
+are decoded and re-encoded without metadata, and user-bound signed API URLs expire
+after 5 minutes while still requiring Manager authentication. Real PostGIS/MinIO,
+rollback and concurrency tests verify the acceptance requirements. Production
+hosting/credentials remain Task 11; issue/PR closure is a repository workflow step.
+See [Field data guide](docs/field-data.md), [Photo guide](docs/photos.md) and
+[progress report](progress05.md).
+
 **Tasks**
 
-- Audit service: writes an `audit_events` row inside the same transaction as the change (actor, entity, action, changed fields); used by every write endpoint.
-- Plots: `GET/POST /plots`, `PATCH /plots/{id}` (requires `row_version`; stale version returns 409); validate required fields, unique code, coordinates and scope flag.
-- Trees: list (paginated, filterable), create, edit, delete under a plot; saving invalidates or recalculates affected draft results.
-- Sediment: `POST /plots/{id}/cores`, `POST /cores/{id}/layers`, plus list/edit/delete; depth as top/bottom in cm; mass and volume validated.
-- Safe deletion: referenced records are archived (soft delete); destructive actions need an explicit confirm parameter and write an audit event; published revisions and provenance are never deleted.
-- Photo upload: MinIO locally, S3-compatible in prod; validate MIME and size; strip EXIF/GPS for public photos; serve through time-limited signed URLs after authorization.
+- [x] Audit service: writes an `audit_events` row inside the same transaction as the change (actor, entity, action, changed fields); used by every write endpoint.
+- [x] Plots: `GET/POST /plots`, `PATCH /plots/{id}` (requires `row_version`; stale version returns 409); validate required fields, unique code, coordinates and scope flag.
+- [x] Trees: list (paginated, filterable), create, edit, delete under a plot; saving invalidates or recalculates affected draft results.
+- [x] Sediment: `POST /plots/{id}/cores`, `POST /cores/{id}/layers`, plus list/edit/delete; depth as top/bottom in cm; mass and volume validated.
+- [x] Safe deletion: referenced records are archived (soft delete); destructive actions need an explicit confirm parameter and write an audit event; published revisions and provenance are never deleted.
+- [x] Photo upload: MinIO locally, S3-compatible in prod; validate MIME and size; strip EXIF/GPS for public photos; serve through time-limited signed URLs after authorization.
 
 **Done when**
 
-- A rolled-back write leaves no audit row; a committed write always has one.
-- Field-specific validation errors; two simultaneous edits cannot silently overwrite each other.
-- Species, DBH, density, optional height and photo link persist against the selected plot; overlapping or non-positive sediment values return field-level errors.
-- Deleting a tree in a published plot leaves the last published snapshot intact.
-- An unauthenticated request to an object URL is blocked and URLs expire.
+- [x] A rolled-back write leaves no audit row; a committed write always has one.
+- [x] Field-specific validation errors; two simultaneous edits cannot silently overwrite each other.
+- [x] Species, DBH, density, optional height and photo link persist against the selected plot; overlapping or non-positive sediment values return field-level errors.
+- [x] Deleting a tree in a published plot leaves the last published snapshot intact.
+- [x] An unauthenticated request to an object URL is blocked and URLs expire.
 
 ## Step 5
 

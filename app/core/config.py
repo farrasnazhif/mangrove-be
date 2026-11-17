@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     csrf_token_expire: int = Field(default=3600, gt=0)
     seed_manager_email: str = "manager.synthetic@example.test"
     seed_manager_password: SecretStr | None = Field(default=None, repr=False, exclude=True)
+    # Task 05: private S3-compatible storage; no network calls during startup.
+    s3_enabled: bool = False
+    s3_endpoint_url: str | None = None
+    s3_region: str = "us-east-1"
+    s3_bucket: str = Field(default="mangrove-photos", pattern=r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
+    s3_access_key_id: SecretStr | None = Field(default=None, repr=False, exclude=True)
+    s3_secret_access_key: SecretStr | None = Field(default=None, repr=False, exclude=True)
+    photo_max_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=20 * 1024 * 1024)
+    photo_max_pixels: int = Field(default=20_000_000, ge=1, le=40_000_000)
+    photo_url_ttl_seconds: int = Field(default=300, ge=1, le=900)
     # Spatial boundary (synthetic bounding box, Surabaya area approx)
     boundary_lon_min: float = Field(default=112.60, ge=-180, le=180)
     boundary_lon_max: float = Field(default=112.85, ge=-180, le=180)
@@ -38,6 +48,15 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_security_and_boundary(self) -> "Settings":
+        if bool(self.s3_access_key_id) != bool(self.s3_secret_access_key):
+            raise ValueError("Both S3 credential values must be set together")
+        if (
+            self.s3_enabled
+            and self.environment in {"staging", "production"}
+            and self.s3_endpoint_url
+            and not self.s3_endpoint_url.startswith("https://")
+        ):
+            raise ValueError("Staging and production S3 endpoints require HTTPS")
         if self.boundary_lon_min >= self.boundary_lon_max:
             raise ValueError("BOUNDARY_LON_MIN must be less than BOUNDARY_LON_MAX")
         if self.boundary_lat_min >= self.boundary_lat_max:

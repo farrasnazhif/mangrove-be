@@ -4,7 +4,7 @@ from datetime import date
 from typing import Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, Field, HttpUrl, model_validator
+from pydantic import AwareDatetime, Field, HttpUrl, ValidationInfo, field_validator, model_validator
 
 from app.schemas.common import ContractModel
 
@@ -46,7 +46,7 @@ class TreeCreate(ContractModel):
     species_id: UUID
     dbh_cm: float = Field(gt=0)
     wood_density_g_cm3: float | None = Field(default=None, gt=0, le=2)
-    density_source: str | None = Field(default=None, max_length=500)
+    density_source: str | None = Field(default=None, max_length=200)
     height_m: float | None = Field(default=None, gt=0)
     photo_id: UUID | None = None
 
@@ -66,6 +66,7 @@ class CoreCreate(ContractModel):
 class CoreResponse(CoreCreate):
     id: UUID
     plot_id: UUID
+    row_version: int = Field(ge=1)
 
 
 class LayerCreate(ContractModel):
@@ -75,17 +76,57 @@ class LayerCreate(ContractModel):
     volume_cm3: float = Field(gt=0)
     loi_pct: float = Field(ge=0, le=100)
 
-    @model_validator(mode="after")
-    def ordered_depths(self) -> "LayerCreate":
-        if self.depth_bottom_cm <= self.depth_top_cm:
+    @field_validator("depth_bottom_cm")
+    @classmethod
+    def ordered_depths(cls, value: float, info: ValidationInfo) -> float:
+        if value <= info.data.get("depth_top_cm", 0):
             raise ValueError("Bottom depth must exceed top depth")
-        return self
+        return value
 
 
 class LayerResponse(LayerCreate):
     id: UUID
     core_id: UUID
     qa_status: str
+    row_version: int = Field(ge=1)
+
+
+class FieldUpdate(ContractModel):
+    row_version: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def require_changes(self) -> "FieldUpdate":
+        if not self.model_fields_set - {"row_version"}:
+            raise ValueError("Provide at least one field to update")
+        return self
+
+
+class TreeUpdate(FieldUpdate):
+    species_id: UUID | None = None
+    dbh_cm: float | None = Field(default=None, gt=0)
+    wood_density_g_cm3: float | None = Field(default=None, gt=0, le=2)
+    density_source: str | None = Field(default=None, max_length=200)
+    height_m: float | None = Field(default=None, gt=0)
+    photo_id: UUID | None = None
+
+
+class CoreUpdate(FieldUpdate):
+    sample_code: str | None = Field(default=None, min_length=1, max_length=100)
+    sample_date: date | None = None
+
+
+class LayerUpdate(FieldUpdate):
+    depth_top_cm: float | None = Field(default=None, ge=0)
+    depth_bottom_cm: float | None = Field(default=None, gt=0)
+    dry_mass_g: float | None = Field(default=None, gt=0)
+    volume_cm3: float | None = Field(default=None, gt=0)
+    loi_pct: float | None = Field(default=None, ge=0, le=100)
+
+
+class ArchiveResponse(ContractModel):
+    id: UUID
+    archived_at: AwareDatetime
+    row_version: int = Field(ge=1)
 
 
 class CarbonStock(ContractModel):

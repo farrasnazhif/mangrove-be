@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 from alembic.config import Config
@@ -71,14 +70,9 @@ def test_public_schema_has_no_private_fields():
 def test_unimplemented_route_returns_honest_501_without_writing(client, manager, db_mock):
     headers = authenticate(client, manager)
     response = client.post(
-        "/api/v1/plots",
+        "/api/v1/reports/exports",
         json={
-            "zone_id": str(uuid4()),
-            "code": "VAK-1",
-            "area_m2": 100,
-            "latitude": -7.3,
-            "longitude": 112.7,
-            "survey_date": "2026-11-16",
+            "format": "xlsx",
         },
         headers=headers,
     )
