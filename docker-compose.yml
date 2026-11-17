@@ -9,7 +9,20 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  minio:
+    build: ./infra/minio
+    image: mangrove-minio:2025-10-15
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-mangrove-local}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-local-development-only-change-me}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - miniodata:/data
 
 volumes:
   pgdata:
-# Later (see backlog): MinIO for attachments, Langflow on an internal-only network.
+  miniodata:
+# Later (see backlog): Langflow on an internal-only network.

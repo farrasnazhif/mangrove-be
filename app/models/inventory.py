@@ -147,6 +147,7 @@ class SedimentLayer(ArchivableRecord, SyntheticRecord, Base):
             (text("numrange(depth_top_cm::numeric, depth_bottom_cm::numeric, '[)')"), "&&"),
             name="ex_layers_overlap",
             using="gist",
+            where=text("archived_at IS NULL"),
         ),
     )
 

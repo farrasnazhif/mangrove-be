@@ -107,3 +107,7 @@ from Git and the Docker build context.
 
 Task 04 equations, units, method registry, completeness flags and remaining reviewer
 benchmark requirements are documented in [calculation guide](docs/calculations.md).
+
+Task 05 audited plot/tree/sediment CRUD, version conflicts and archival behavior
+are documented in [field data guide](docs/field-data.md). Private photo upload,
+local MinIO setup and manual Swagger testing are in [photo guide](docs/photos.md).

@@ -5,6 +5,12 @@ section 9.4, plus implemented auth/health operations. Import this file into the 
 API client generator, Postman or another OpenAPI-compatible client. The same document
 is served at `/openapi.json` and rendered at `/docs`.
 
+Task 05 plot, tree, core and layer CRUD is implemented. Added list/edit/archive
+operations and `row_version` on core/layer responses are described in the
+[field data guide](../docs/field-data.md). Implemented multipart photo upload,
+signed download URLs and authenticated binary responses are described in the
+[photo guide](../docs/photos.md); original filenames and storage keys are not exposed.
+
 Operations with `x-implementation-status: planned` validate access and inputs, then
 return **501**, without writing data or returning fabricated inventory. Their 2xx DTOs
 define the future feature contract; they are not operational features yet. Implement

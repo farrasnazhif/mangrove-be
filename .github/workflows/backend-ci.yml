@@ -29,6 +29,14 @@ jobs:
       JWT_SECRET: ci-only-nonproduction-secret-at-least-32-bytes
       ENVIRONMENT: test
       SESSION_COOKIE_SECURE: "false"
+      S3_ENABLED: "true"
+      S3_ENDPOINT_URL: http://127.0.0.1:9000
+      S3_BUCKET: mangrove-photos-ci
+      S3_ACCESS_KEY_ID: mangrove-ci
+      S3_SECRET_ACCESS_KEY: ci-only-photo-storage-secret
+      TEST_S3_ENDPOINT_URL: http://127.0.0.1:9000
+      TEST_S3_ACCESS_KEY_ID: mangrove-ci
+      TEST_S3_SECRET_ACCESS_KEY: ci-only-photo-storage-secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,6 +44,11 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install uv==0.13.7
       - run: uv sync --frozen
+      - name: Build and start private local MinIO
+        run: |
+          docker compose up -d --build minio
+          timeout 60 bash -c 'until curl --silent --fail http://127.0.0.1:9000/minio/health/live; do sleep 1; done'
+          uv run python -m scripts.setup_photo_storage
       - name: Lint and types
         run: |
           uv run ruff check .
@@ -46,10 +59,13 @@ jobs:
           uv run alembic upgrade head
           uv run alembic downgrade base
           uv run alembic upgrade head
-      - name: Tests including real PostGIS and reviewed OpenAPI
+      - name: Tests including real PostGIS, MinIO and reviewed OpenAPI
         run: |
           uv run pytest -q
           uv run python -m scripts.export_openapi --check
+      - name: Stop local photo storage
+        if: always()
+        run: docker compose stop minio
       - uses: actions/upload-artifact@v4
         with:
           name: openapi-contract

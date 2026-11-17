@@ -22,4 +22,4 @@ class Page[T](BaseModel):
 
 
 class ContractModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False, from_attributes=True)

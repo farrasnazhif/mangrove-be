@@ -12,9 +12,7 @@ from app.api.deps import optional_user, require_manager, verify_csrf
 from app.api.pagination import (
     Pagination,
     layer_pagination,
-    plot_pagination,
     public_plot_pagination,
-    tree_pagination,
 )
 from app.core.errors import APIError
 from app.schemas.common import Page
@@ -23,25 +21,16 @@ from app.schemas.inventory import (
     CalculationResponse,
     ChatRequest,
     ChatResponse,
-    CoreCreate,
-    CoreResponse,
     DBHRecap,
     ExportRequest,
     ExportResponse,
     ImportRequest,
     ImportResponse,
-    LayerCreate,
-    LayerResponse,
     MapLayer,
-    PlotCreate,
-    PlotResponse,
-    PlotUpdate,
     PublicationResponse,
     PublicMapPlot,
     PublicPlot,
     PublishRequest,
-    TreeCreate,
-    TreeResponse,
 )
 
 router = APIRouter()
@@ -76,94 +65,6 @@ async def public_plots(pagination: Pagination = Depends(public_plot_pagination))
     openapi_extra=PLANNED,
 )
 async def public_plot(plot_id: UUID):
-    unavailable()
-
-
-@router.get(
-    "/plots",
-    response_model=Page[PlotResponse],
-    tags=["plots"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def plots(pagination: Pagination = Depends(plot_pagination)):
-    unavailable()
-
-
-@router.post(
-    "/plots",
-    response_model=PlotResponse,
-    status_code=201,
-    tags=["plots"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def create_plot(payload: PlotCreate):
-    unavailable()
-
-
-@router.patch(
-    "/plots/{plot_id}",
-    response_model=PlotResponse,
-    tags=["plots"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def update_plot(plot_id: UUID, payload: PlotUpdate):
-    unavailable()
-
-
-@router.get(
-    "/plots/{plot_id}/trees",
-    response_model=Page[TreeResponse],
-    tags=["trees"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def trees(plot_id: UUID, pagination: Pagination = Depends(tree_pagination)):
-    unavailable()
-
-
-@router.post(
-    "/plots/{plot_id}/trees",
-    response_model=TreeResponse,
-    status_code=201,
-    tags=["trees"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def create_tree(plot_id: UUID, payload: TreeCreate):
-    unavailable()
-
-
-@router.post(
-    "/plots/{plot_id}/cores",
-    response_model=CoreResponse,
-    status_code=201,
-    tags=["sediment"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def create_core(plot_id: UUID, payload: CoreCreate):
-    unavailable()
-
-
-@router.post(
-    "/cores/{core_id}/layers",
-    response_model=LayerResponse,
-    status_code=201,
-    tags=["sediment"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def create_layer(core_id: UUID, payload: LayerCreate):
     unavailable()
 
 
