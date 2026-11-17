@@ -115,6 +115,12 @@ needs decision: D1 (golden tests need the reviewer's expected results; the metho
 branch: feat/calc-module
 Refs: FR-13, FR-14, FR-15, FR-17, FR-18, TR-08, TR-09, TT-03, AT-02, AT-03, AT-06, §6, §6.1, §9.5
 
+Status: **Core implementation and local equation/replay checks implemented,
+17 November 2026; reviewer golden acceptance pending.** See the
+[calculation guide](docs/calculations.md). The reviewer fixture and approved
+tolerance remain required; local synthetic checks are not a replacement. Multi-core
+aggregation and project rounding precision remain unspecified and are not assumed.
+
 **Tasks**
 
 - Pure functions in `app/calc/`, no DB or FastAPI imports. Tree: AGB `0.251·ρ·DBH^2.46`, BGB `0.199·ρ^0.899·DBH^2.22`, AGC `AGB·0.47`, BGC `BGB·0.39`, plot Mg C/ha from actual plot area.

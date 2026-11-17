@@ -83,6 +83,10 @@ Scientific golden results and the complete input → calculation → review/publ
 report workflow require the corresponding feature implementations. Schema tests do
 not establish the correctness of carbon equations or implement those API routes.
 
+Task 04 now has local equation and replay checks in `tests/test_calc.py`; see the
+[calculation guide](calculations.md). These checks do not replace the missing
+reviewer-signed golden fixture or exercise Task 06 calculation-run/publication APIs.
+
 ## Development migrations and seed
 
 Configure the local application's `DATABASE_URL` in `.env`, then run:

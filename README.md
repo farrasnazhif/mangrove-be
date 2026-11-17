@@ -104,3 +104,6 @@ from Git and the Docker build context.
 - `app/calc/` pure scientific functions, no DB/FastAPI imports
 - `app/services/` publication, export, chat orchestration
 - `langflow/flows/` exported, version-controlled flows
+
+Task 04 equations, units, method registry, completeness flags and remaining reviewer
+benchmark requirements are documented in [calculation guide](docs/calculations.md).
