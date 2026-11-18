@@ -17,8 +17,6 @@ from app.api.pagination import (
 from app.core.errors import APIError
 from app.schemas.common import Page
 from app.schemas.inventory import (
-    CalculationRequest,
-    CalculationResponse,
     ChatRequest,
     ChatResponse,
     DBHRecap,
@@ -27,10 +25,8 @@ from app.schemas.inventory import (
     ImportRequest,
     ImportResponse,
     MapLayer,
-    PublicationResponse,
     PublicMapPlot,
     PublicPlot,
-    PublishRequest,
 )
 
 router = APIRouter()
@@ -65,31 +61,6 @@ async def public_plots(pagination: Pagination = Depends(public_plot_pagination))
     openapi_extra=PLANNED,
 )
 async def public_plot(plot_id: UUID):
-    unavailable()
-
-
-@router.post(
-    "/plots/{plot_id}/calculation-runs",
-    response_model=CalculationResponse,
-    status_code=201,
-    tags=["calculations"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def calculate(plot_id: UUID, payload: CalculationRequest):
-    unavailable()
-
-
-@router.post(
-    "/plots/{plot_id}/publish",
-    response_model=PublicationResponse,
-    tags=["publications"],
-    dependencies=[Depends(require_manager)],
-    description=DESCRIPTION,
-    openapi_extra=PLANNED,
-)
-async def publish(plot_id: UUID, payload: PublishRequest):
     unavailable()
 
 

@@ -116,11 +116,13 @@ async def update_plot(session: AsyncSession, plot_id: str, payload, actor_id: st
     record = await active(session, Plot, plot_id, lock=True)
     check_version(record, payload.row_version)
     before = snapshot(record)
-    for key, value in values(payload, changes=True).items():
-        setattr(record, key, value)
+    # Load before changing coordinates: session.get can autoflush, and the DB
+    # requires geom and latitude/longitude to agree in every persisted revision.
     zone = await session.get(Zone, record.zone_id)
     if zone is None:
         raise invalid("zone_id", "Zone does not exist")
+    for key, value in values(payload, changes=True).items():
+        setattr(record, key, value)
     await assign_plot_scope(session, record, zone)
     record.row_version += 1
     record_change(session, actor_id=actor_id, record=record, action="update", before=before)

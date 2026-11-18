@@ -142,6 +142,7 @@ class CarbonStock(ContractModel):
 class CalculationRequest(ContractModel):
     method_version_id: UUID
     input_revision: int = Field(ge=1)
+    expected_bottom_cm: float | None = Field(default=None, gt=0)
 
 
 class CalculationResponse(ContractModel):
@@ -153,6 +154,26 @@ class CalculationResponse(ContractModel):
     carbon_stock: CarbonStock
     qa_flags: list[str]
     qa_status: Literal["draft", "incomplete", "approved", "rejected"]
+    created_at: AwareDatetime
+
+
+class CalculationDetail(CalculationResponse):
+    input_snapshot: dict
+    result_json: dict
+
+
+class RunApprovalRequest(ContractModel):
+    row_version: int = Field(ge=1)
+
+
+class ManagerNoticeResponse(ContractModel):
+    id: UUID
+    plot_id: UUID
+    calculation_run_id: UUID
+    plot_code: str
+    flag: str
+    message: str
+    suggested_action: str
     created_at: AwareDatetime
 
 

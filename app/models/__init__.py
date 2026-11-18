@@ -7,6 +7,7 @@ from app.models.inventory import (
     Tree,
     Zone,
 )
+from app.models.notices import ManagerNotice
 from app.models.provenance import (
     Attachment,
     AuditEvent,
@@ -21,6 +22,7 @@ __all__ = [
     "AuditEvent",
     "CalculationRun",
     "DbhImportBatch",
+    "ManagerNotice",
     "MethodVersion",
     "Plot",
     "Publication",
