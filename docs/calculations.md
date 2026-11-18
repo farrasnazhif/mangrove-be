@@ -86,7 +86,9 @@ result does not assert publication authorization or eligibility.
 
 Preserve the exact input snapshot along with the original method version and full
 precision results. Replay through `calculate_plot` with those same inputs and method.
-Calculation-run storage, hashes, timestamps and publication are Task 06 work.
+Calculation-run storage, hashes, timestamps and publication are now implemented in
+Task 06; see [Calculation runs](calculation-runs.md). Scientific golden acceptance
+remains pending independently of those API features.
 
 An empty rounding rule means rounding has not been approved. `round_output` leaves
 values unchanged in that case. A method can explicitly specify decimal places and
@@ -102,6 +104,24 @@ overlaps, input bounds, area weighting, method registry behavior and JSON replay
 The local equation-check tolerance is 1e-12 relative for tree intermediates; it is
 not an approved reviewer tolerance.
 
-**The reviewer-signed golden fixture and approved tolerance are still unavailable.**
-Task 04 cannot be marked fully done until that fixture is supplied and every
-intermediate is checked against it. Local equation checks are not a substitute.
+On 18 November 2026 the user authorized a technical benchmark based on the known
+PRD method and the supplied `realdata` workbook instead of waiting for a reviewer
+fixture. `tests/fixtures/calculation_benchmarks.json` freezes three cases evaluated
+independently using Decimal at 55 digits. `tests/test_calculation_benchmarks.py`
+compares every tree/layer intermediate and plot stock with relative tolerance
+1e-12 and absolute tolerance 1e-10. These are numerical regression tolerances, not
+measurement uncertainty or an independently approved research tolerance.
+
+The fixture includes five DBH/density samples and cached AGB/BGB from the supplied
+workbook, its SHA-256 and source row numbers. Plot areas and sediment measurements
+in the benchmark are explicitly synthetic; no workbook plot area is inferred.
+The workbook uses rounded CO2e factor 3.67; the backend retains PRD ratio 44/12.
+No missing density is replaced by workbook/default density in the production API.
+The raw workbook is not required by CI: the committed JSON is self-contained.
+Regenerate only for an intentional reviewed change with
+`uv run python -m scripts.build_calculation_benchmarks` when the workbook is present.
+
+The allometry reference is [Komiyama, Poungparn and Kato (2005)](https://doi.org/10.1017/S0266467405002476).
+Carbon fractions and the LOI divisor remain the project method in PRD section 6.
+This completes the user-authorized technical benchmark requirement for development;
+it does not claim independent reviewer sign-off or approve real field inventory.

@@ -8,6 +8,13 @@ Priority `P0` / `P1` follows the PRD. The starter scaffold is already done (Fast
 
 ## Working rules
 
+Session exception, 18 November 2026: the user authorized consolidating Task 03/04/06
+readiness fixes on `06-calculation-runs-and-publish`, with separate commits, and
+explicitly excluded Task 01. Technical golden acceptance uses the PRD method and
+supplied workbook instead of waiting for independent reviewer fixtures. Cross-task
+consumer checks remain owned by the tasks that implement those consumers; they do
+not prevent Task 07 development against the supported Task 06 contracts.
+
 - **One task = one issue = one branch.** An issue holds several pieces of work: they are the **Tasks** checklist inside it, all done on the same branch and PR.
 - **Branch from `main`**, named as the issue's `branch:` line. Open a draft PR early; the PR description starts with `Closes #<issue number>`. The PR is done when every Task and every Done-when box is ticked. Rebase on `main` often; delete the branch after merge.
 - **Take any issue whose dependencies are all closed.** Anything else is off limits, even if it looks easy.
@@ -22,8 +29,8 @@ Answered ones are recorded so the team does not ask again. Open ones unblock the
 
 | ID  | Decision | Status | Needed by issues |
 | --- | -------- | ------ | ---------------- |
-| D1  | Scientific method (equations, coefficients, %C = LOI ÷ 1.724) | **Answered: approved as written in PRD §6.** Still open: the reviewer's benchmark fixture (expected results) for golden tests. | 4 |
-| D2  | Boundary of the study area; VAK plot count | **Answered: no boundary file and no coordinates available.** The study-area box (min/max latitude and longitude) is a config value stored in `zones.boundary_geom`. Until a real box is set, seed and tests use a clearly labelled synthetic box and publishing real plots is blocked with a clear error. Plot count unknown, not needed. | 3 |
+| D1  | Scientific method (equations, coefficients, %C = LOI ÷ 1.724) | **Answered: approved as written in PRD §6.** On 18 November the user authorized technical golden fixtures from an independent Decimal baseline plus workbook samples (relative 1e-12, absolute 1e-10). Independent scientific sign-off is not claimed. | 4 |
+| D2  | Boundary of the study area; VAK plot count | **Candidate polygons now available locally in `realdata/Data/zona_vak.csv`; official scope approval is not implied.** The stored zone geometry remains authoritative. Synthetic seed boundaries cannot be used for official publication. Verify source/revision and approve real scope before publishing real inventory. | 3 |
 | D3  | Auth provider and roles | **Answered: build login ourselves.** Roles assumed Manager only (PRD allows Admin to be merged with Manager for MVP). | 3 |
 | D4  | Hosting, object storage, backups | **Photo storage resolved for Task 05:** private MinIO locally, S3-compatible adapter for production, 5 MiB upload limit, 5-minute user-bound signed API URLs. Hosting, production provider/credentials and backups remain open for Task 11. | 5, 11 |
 | D5  | Area-weighted multi-plot average; publish a plot without sediment (biomass-only) | **Answered: area-weighted average; a plot without sediment data may be published biomass-only**, labelled as incomplete (no SOC, no ecosystem total). Still open, small: cores per plot, rounding, "valid plot" definition. | 6, 7 |
@@ -115,10 +122,11 @@ needs decision: D1 (golden tests need the reviewer's expected results; the metho
 branch: feat/calc-module
 Refs: FR-13, FR-14, FR-15, FR-17, FR-18, TR-08, TR-09, TT-03, AT-02, AT-03, AT-06, §6, §6.1, §9.5
 
-Status: **Core implementation and local equation/replay checks implemented,
-17 November 2026; reviewer golden acceptance pending.** See the
-[calculation guide](docs/calculations.md). The reviewer fixture and approved
-tolerance remain required; local synthetic checks are not a replacement. Multi-core
+Status: **Technical implementation and user-authorized benchmark acceptance complete,
+18 November 2026.** See the [calculation guide](docs/calculations.md). Three frozen
+fixtures use independent 55-digit Decimal calculations; workbook samples additionally
+check cached AGB/BGB. This replaces the development wait for reviewer fixtures by
+explicit user instruction, not by claiming independent scientific sign-off. Multi-core
 aggregation and project rounding precision remain unspecified and are not assumed.
 
 **Tasks**
@@ -181,17 +189,26 @@ needs decision: none blocking (D5 answered; cores per plot and rounding still op
 branch: feat/calc-runs-publish
 Refs: FR-04, TR-09, TR-10, AT-06, AT-10, §3.2, §9.4
 
+Status: **Core implementation and technical handoff to Task 07 ready; cross-task
+acceptance pending, 18 November 2026.** Immutable snapshots/runs, reviewed copies,
+QA notices, transactional publish and an allowlisted public snapshot projection are
+implemented. Task 03 scope guards now also reject archived/unverified records; a
+Task 05 coordinate-autoflush bug is fixed. User-authorized Task 04 benchmarks pass.
+Consumer integration and export-completion notices remain with the implementing
+tasks. See [Calculation runs guide](docs/calculation-runs.md) and
+[Task 07 handoff](docs/task-07-handoff.md).
+
 **Tasks**
 
-- `POST /api/v1/plots/{plot_id}/calculation-runs` runs a given method version on an identified input revision and stores an immutable run with `input_hash`, full-precision `result_json`, QA flags and timestamp.
-- P1: emit manager notices for missing density, incomplete sediment profile, out-of-scope coordinates and export completion, each naming the plot and the issue.
-- `POST /plots/{id}/publish` publishes an approved `calculation_run_id` (complete, or biomass-only and labelled as incomplete) in one transaction and writes an audit event.
+- [x] `POST /api/v1/plots/{plot_id}/calculation-runs` runs a given method version on an identified input revision and stores an immutable run with `input_hash`, full-precision `result_json`, QA flags and timestamp.
+- [ ] P1: emit manager notices for missing density, incomplete sediment profile, out-of-scope coordinates and export completion, each naming the plot and the issue. **Calculation QA notices implemented; export completion awaits Task 08.**
+- [x] `POST /plots/{id}/publish` publishes an approved `calculation_run_id` (complete, or biomass-only and labelled as incomplete) in one transaction and writes an audit event.
 
 **Done when**
 
-- Editing inputs does not alter an existing run; a new draft run can exist while the published run stays visible.
-- A notice is created for each flag type with plot code and action.
-- Dashboard, map, export and chatbot all read the same `published_run_id`; a revision after publication does not overwrite the published snapshot.
+- [x] Editing inputs does not alter an existing run; a new draft run can exist while the published run stays visible.
+- [ ] A notice is created for each flag type with plot code and action. **Calculation flags covered; export completion pending.**
+- [ ] Dashboard, map, export and chatbot all read the same `published_run_id`; a revision after publication does not overwrite the published snapshot. **Shared pointer resolver and snapshot preservation implemented; consumer integration pending.**
 
 ## Step 6
 

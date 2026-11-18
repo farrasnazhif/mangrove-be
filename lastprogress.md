@@ -1,3 +1,56 @@
+# Status terbaru — Konsolidasi Task 03/04/06, 18 November 2026
+
+Pengguna mengizinkan perbaikan kesiapan Task 07 pada branch 06 yang sama, commit
+terpisah dan push hanya ke branch tersebut. Task 01 dikecualikan secara eksplisit.
+
+Perbaikan tambahan: scope publik/publikasi menolak plot archived dan label selain
+field; bug autoflush perubahan koordinat Task 05 diperbaiki; snapshot memuat nama
+zone dan visibility foto; service `published_inventory` menyediakan proyeksi publik
+dengan guard scope dan allowlist foto. Pengujian membuktikan perubahan draft tidak
+mengubah nilai publik, pencabutan scope menyembunyikan publikasi, dan foto privat
+tidak bocor. Task 07 belum diimplementasikan; service dan fixture siap dipakai tim.
+
+Task 04 menggunakan benchmark teknis sesuai arahan pengguna: tiga fixture JSON
+dengan perhitungan Decimal independen 55 digit, lima sampel DBH/density dari workbook
+lokal dan pembanding AGB/BGB cache. Rasio CO2e tetap 44/12 sesuai PRD meski workbook
+memakai 3.67. Ini bukan klaim reviewer ilmiah independen atau approval data resmi.
+
+Laporan terkini: [PROGRES-06.md](PROGRES-06.md).
+Verifikasi final 18 November: **345 tests passed**, termasuk PostGIS dan MinIO;
+Ruff/mypy lulus (46 source files), satu migration head, OpenAPI cocok, diff bersih.
+Panduan tim berikutnya: [Task 07 handoff](docs/task-07-handoff.md).
+Catatan 17 November di bawah adalah riwayat, bukan status acceptance terbaru.
+
+---
+
+# Status Task 06 — 17 November 2026 (historis)
+
+Branch `06-calculation-runs-and-publish`. Pengguna mengizinkan pengerjaan bagian
+Task 06 yang tersedia sebelum kekurangan acceptance Task 03/04 diselesaikan.
+Helper Task 03 dan engine Task 04 digunakan tanpa diubah.
+
+Implementasi tersedia: endpoint calculation run dengan snapshot/hash deterministik,
+hasil presisi penuh dan QA flags; detail run; notifikasi Manager tersimpan;
+persetujuan menghasilkan salinan approved yang immutable; publikasi transaksional
+beserta audit, pemeriksaan scope/metode/revisi dan pointer publikasi bersama.
+Biomass-only tanpa sediment tetap berlabel incomplete dengan SOC/total/CO2e null.
+Sedimen parsial, multi-core tanpa aturan, data sintetis, metode pending dan revisi
+lama tidak dapat dipublikasikan. Perubahan input mempertahankan snapshot publikasi.
+
+Verifikasi: **328 tests passed**, termasuk PostGIS, MinIO, rollback, replay dan dua
+skenario concurrent calculation versus input edit. Test data/approval hanya berada
+di schema terisolasi; bukan persetujuan ilmiah atau boundary resmi.
+Migrasi `0004_manager_notices` disiapkan dan round-trip diuji pada schema sementara;
+database aplikasi pengguna belum dimigrasikan.
+
+Task 06 belum Done keseluruhan: golden fixture/toleransi Task 04, alur end-to-end
+Task 03, keputusan riset terkait sampling/multi-core/pembulatan, integrasi konsumen
+dashboard/map/export/chatbot dan notifikasi export completion masih terbuka.
+Panduan: [Calculation runs](docs/calculation-runs.md). Checklist BACKLOG membedakan
+implementasi yang selesai dari acceptance yang tertunda.
+
+---
+
 # Status terbaru Task 02 — 17 November 2026
 
 Task 02 dilengkapi pada branch kerja yang sama (`03-auth-and-accesss`), mengikuti

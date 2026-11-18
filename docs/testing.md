@@ -98,7 +98,15 @@ storage variables so the real storage round trip runs alongside PostGIS.
 
 Task 04 now has local equation and replay checks in `tests/test_calc.py`; see the
 [calculation guide](calculations.md). These checks do not replace the missing
-reviewer-signed golden fixture or exercise Task 06 calculation-run/publication APIs.
+reviewer-signed golden fixture. Task 06 API/transaction/concurrency checks are in
+`tests/test_calculation_runs.py`, `tests/test_calculation_concurrency.py` and
+`tests/test_calculation_access.py`; see [Calculation runs](calculation-runs.md).
+
+Consolidated Task 06 readiness verification on 18 November 2026: **345 tests passed**
+with explicit PostGIS/MinIO test settings. Frozen technical benchmarks run in
+`tests/test_calculation_benchmarks.py`; the source workbook is not required by CI.
+`tests/test_published_inventory.py` checks the snapshot/public-photo projection and
+scope/archival gates used by the Task 07 handoff. See [handoff](task-07-handoff.md).
 
 ## Development migrations and seed
 
@@ -112,7 +120,7 @@ uv run python -m app.db.seed
 uv run python -m app.db.seed
 ```
 
-The current revision should be `0003_active_layer_intervals (head)`. Existing user IDs
+The current revision should be `0004_manager_notices (head)`. Existing user IDs
 must be valid UUID strings before this migration converts their database type.
 Invalid legacy IDs cause a transactional migration failure rather than identity replacement.
 Downgrades remove tables/columns and their data; exercise them only on test databases.

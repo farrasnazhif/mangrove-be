@@ -111,3 +111,8 @@ benchmark requirements are documented in [calculation guide](docs/calculations.m
 Task 05 audited plot/tree/sediment CRUD, version conflicts and archival behavior
 are documented in [field data guide](docs/field-data.md). Private photo upload,
 local MinIO setup and manual Swagger testing are in [photo guide](docs/photos.md).
+
+Task 06 calculation/review/publication APIs are documented in
+[calculation runs](docs/calculation-runs.md). The consolidated readiness report is
+[PROGRES-06.md](PROGRES-06.md); the next team should start with the
+[Task 07 handoff](docs/task-07-handoff.md).
