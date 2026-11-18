@@ -107,9 +107,10 @@ def inventory_scope_predicate():
     """
     return and_(
         Plot.zone_id == Zone.id,
+        Plot.archived_at.is_(None),
         Plot.status != "quarantine",
-        Plot.data_label != "synthetic",
-        Zone.data_label != "synthetic",
+        Plot.data_label == "field",
+        Zone.data_label == "field",
         Zone.approved_scope.is_(True),
         Zone.boundary_is_synthetic.is_(False),
         func.ST_Covers(Zone.boundary_geom, Plot.geom),
@@ -120,8 +121,9 @@ async def require_publishable_scope(session: AsyncSession, plot: Plot, zone: Zon
     """Publishing hook: fail closed until an official study boundary is approved."""
     if (
         plot.zone_id != zone.id
-        or plot.data_label == "synthetic"
-        or zone.data_label == "synthetic"
+        or plot.archived_at is not None
+        or plot.data_label != "field"
+        or zone.data_label != "field"
         or zone.boundary_is_synthetic
         or not zone.approved_scope
         or plot.status == "quarantine"

@@ -3,8 +3,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.models import Zone
-from app.services.spatial import BoundingBox, classify_plot_scope, validate_coordinates
+from app.models import Plot, Zone
+from app.services.spatial import (
+    BoundingBox,
+    classify_plot_scope,
+    inventory_scope_predicate,
+    require_publishable_scope,
+    validate_coordinates,
+)
 
 
 @pytest.mark.parametrize(
@@ -52,3 +58,32 @@ def test_scope_policy(inside, synthetic, approved, label, expected):
     assert (
         asyncio.run(classify_plot_scope(session, zone, 112.7, -7.3, data_label=label)) == expected
     )
+
+
+@pytest.mark.parametrize(
+    "reason", ["archived", "unknown-plot-label", "unknown-zone-label", "outside", "quarantine"]
+)
+def test_publication_scope_fails_closed(reason):
+    from datetime import UTC, datetime
+
+    session = AsyncMock()
+    session.scalar.return_value = reason != "outside"
+    zone = Zone(id="zone", data_label="field", boundary_is_synthetic=False, approved_scope=True)
+    plot = Plot(zone_id="zone", data_label="field", status="draft", archived_at=None)
+    if reason == "archived":
+        plot.archived_at = datetime.now(UTC)
+    elif reason == "unknown-plot-label":
+        plot.data_label = "unverified"
+    elif reason == "unknown-zone-label":
+        zone.data_label = "unverified"
+    elif reason == "quarantine":
+        plot.status = "quarantine"
+    with pytest.raises(ValueError, match="cannot be published"):
+        asyncio.run(require_publishable_scope(session, plot, zone))
+
+
+def test_inventory_scope_excludes_archived_and_unknown_labels():
+    sql = str(inventory_scope_predicate().compile(compile_kwargs={"literal_binds": True}))
+    assert "plots.archived_at IS NULL" in sql
+    assert "plots.data_label = 'field'" in sql
+    assert "zones.data_label = 'field'" in sql
